@@ -3,18 +3,14 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import Button from "@/components/_ui/button";
+import { authClient, authErrorMessage } from "@/lib/auth-client";
 import AuthDivider from "./components/auth-divider";
 import AuthField from "./components/auth-field";
 import AuthFooterLink from "./components/auth-footer-link";
 import AuthHeading from "./components/auth-heading";
 import PasswordField from "./components/password-field";
 import SocialAuth from "./components/social-auth";
-import {
-  isValidEmail,
-  isValidPassword,
-  signInSession,
-  wait,
-} from "./lib/session";
+import { isValidEmail, isValidPassword } from "./lib/session";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -23,18 +19,21 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
 
-  async function finishSocial() {
-    signInSession();
-    await navigate({ to: "/" });
-  }
-
-  async function handleSocial() {
+  async function handleSocial(provider: "google" | "twitch") {
     if (pending) return;
     setPending(true);
-    await wait();
-    await finishSocial();
+    setFormError("");
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL: "/",
+    });
+    if (error) {
+      setFormError(authErrorMessage(error));
+      setPending(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -50,6 +49,7 @@ export default function RegisterPage() {
     if (confirm !== password) nextErrors.confirm = "Passwords must match";
 
     setErrors(nextErrors);
+    setFormError("");
 
     if (Object.keys(nextErrors).length > 0) {
       const order = ["name", "email", "password", "confirm"];
@@ -59,11 +59,18 @@ export default function RegisterPage() {
     }
 
     setPending(true);
-    await wait();
-    await navigate({
-      to: "/otp",
-      search: { email: email.trim(), intent: "verify" },
+    const { error } = await authClient.signUp.email({
+      name: name.trim(),
+      email: email.trim(),
+      password,
+      callbackURL: "/",
     });
+    if (error) {
+      setFormError(authErrorMessage(error));
+      setPending(false);
+      return;
+    }
+    await navigate({ to: "/" });
   }
 
   function update(field: string, value: string) {
@@ -84,13 +91,13 @@ export default function RegisterPage() {
     <div className="flex flex-col gap-8">
       <AuthHeading
         title="Create your account"
-        description="Start using Sales CRM with your work email."
+        description="Sign up for Dhewa with your email."
       />
 
       <SocialAuth
         pending={pending}
-        onGoogle={handleSocial}
-        onApple={handleSocial}
+        onGoogle={() => void handleSocial("google")}
+        onTwitch={() => void handleSocial("twitch")}
       />
 
       <AuthDivider />
@@ -114,7 +121,7 @@ export default function RegisterPage() {
           name="email"
           autoComplete="email"
           inputMode="email"
-          placeholder="you@company.com"
+          placeholder="you@example.com"
           value={email}
           error={errors.email}
           disabled={pending}
@@ -142,6 +149,12 @@ export default function RegisterPage() {
           disabled={pending}
           onChange={(event) => update("confirm", event.target.value)}
         />
+
+        {formError ? (
+          <p role="alert" className="caption-style text-danger">
+            {formError}
+          </p>
+        ) : null}
 
         <Button
           type="submit"

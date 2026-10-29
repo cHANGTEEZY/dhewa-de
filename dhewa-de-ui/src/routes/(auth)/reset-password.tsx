@@ -3,7 +3,7 @@ import ResetPasswordPage from "@/features/auth/reset-password";
 import { authHead } from "@/features/auth/lib/head";
 
 const TITLE = "Reset password";
-const DESCRIPTION = "Reset your Sales CRM password with a 6-digit code.";
+const DESCRIPTION = "Password reset for a Dhewa account.";
 
 export type ResetPasswordSearch = {
   email?: string;

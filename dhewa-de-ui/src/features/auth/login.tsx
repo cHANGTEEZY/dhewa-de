@@ -1,20 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import Button from "@/components/_ui/button";
+import { authClient, authErrorMessage } from "@/lib/auth-client";
 import AuthDivider from "./components/auth-divider";
 import AuthField from "./components/auth-field";
 import AuthFooterLink from "./components/auth-footer-link";
 import AuthHeading from "./components/auth-heading";
 import PasswordField from "./components/password-field";
 import SocialAuth from "./components/social-auth";
-import {
-  isValidEmail,
-  isValidPassword,
-  signInSession,
-  wait,
-} from "./lib/session";
+import { isValidEmail, isValidPassword } from "./lib/session";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -22,18 +18,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
   const [pending, setPending] = useState(false);
 
-  async function finish() {
-    signInSession();
-    await navigate({ to: "/" });
-  }
-
-  async function handleSocial() {
+  async function handleSocial(provider: "google" | "twitch") {
     if (pending) return;
     setPending(true);
-    await wait();
-    await finish();
+    setFormError("");
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL: "/",
+    });
+    if (error) {
+      setFormError(authErrorMessage(error));
+      setPending(false);
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -49,6 +48,7 @@ export default function LoginPage() {
 
     setEmailError(nextEmailError);
     setPasswordError(nextPasswordError);
+    setFormError("");
 
     if (nextEmailError || nextPasswordError) {
       const firstInvalid = nextEmailError ? "login-email" : "login-password";
@@ -57,21 +57,30 @@ export default function LoginPage() {
     }
 
     setPending(true);
-    await wait();
-    await finish();
+    const { error } = await authClient.signIn.email({
+      email: email.trim(),
+      password,
+      callbackURL: "/",
+    });
+    if (error) {
+      setFormError(authErrorMessage(error));
+      setPending(false);
+      return;
+    }
+    await navigate({ to: "/" });
   }
 
   return (
     <div className="flex flex-col gap-8">
       <AuthHeading
         title="Welcome back"
-        description="Sign in to continue to Sales CRM."
+        description="Sign in to Dhewa."
       />
 
       <SocialAuth
         pending={pending}
-        onGoogle={handleSocial}
-        onApple={handleSocial}
+        onGoogle={() => void handleSocial("google")}
+        onTwitch={() => void handleSocial("twitch")}
       />
 
       <AuthDivider />
@@ -84,7 +93,7 @@ export default function LoginPage() {
           name="email"
           autoComplete="email"
           inputMode="email"
-          placeholder="you@company.com"
+          placeholder="you@example.com"
           value={email}
           error={emailError}
           disabled={pending}
@@ -102,19 +111,17 @@ export default function LoginPage() {
           value={password}
           error={passwordError}
           disabled={pending}
-          trailing={
-            <Link
-              to="/reset-password"
-              className="caption-style text-soft hover:text-foreground underline decoration-from-font underline-offset-2"
-            >
-              Forgot password?
-            </Link>
-          }
           onChange={(event) => {
             setPassword(event.target.value);
             if (passwordError) setPasswordError("");
           }}
         />
+
+        {formError ? (
+          <p role="alert" className="caption-style text-danger">
+            {formError}
+          </p>
+        ) : null}
 
         <Button
           type="submit"

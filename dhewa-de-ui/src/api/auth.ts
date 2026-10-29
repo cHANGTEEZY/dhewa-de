@@ -1,41 +1,49 @@
-import { api, tokenStore } from "@/lib/apiClient";
-import { ENDPOINTS } from "./endpoints";
-import type { ApiResponse } from "./types";
+import { authClient } from "@/lib/auth-client";
 
 export interface LoginPayload {
   email: string;
   password: string;
 }
 
-export interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
+export interface RegisterPayload extends LoginPayload {
+  name: string;
 }
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  avatar?: string;
-}
-
-export type LoginResponse = AuthTokens & { user: AuthUser };
 
 export const authApi = {
-  login: async (payload: LoginPayload): Promise<LoginResponse> => {
-    const res = await api.post<LoginResponse>(ENDPOINTS.auth.login, payload);
-    tokenStore.setToken(res.access_token);
-    tokenStore.setRefreshToken(res.refresh_token);
-    return res;
+  login: async (payload: LoginPayload) => {
+    const result = await authClient.signIn.email({
+      email: payload.email,
+      password: payload.password,
+      callbackURL: "/",
+    });
+    if (result.error) {
+      throw new Error(result.error.message ?? "Could not sign in");
+    }
+    return result.data;
   },
-  logout: async (): Promise<void> => {
-    try {
-      await api.post<void>(ENDPOINTS.auth.logout);
-    } finally {
-      tokenStore.clearAll();
+  register: async (payload: RegisterPayload) => {
+    const result = await authClient.signUp.email({
+      name: payload.name,
+      email: payload.email,
+      password: payload.password,
+      callbackURL: "/",
+    });
+    if (result.error) {
+      throw new Error(result.error.message ?? "Could not create the account");
+    }
+    return result.data;
+  },
+  logout: async () => {
+    const result = await authClient.signOut();
+    if (result.error) {
+      throw new Error(result.error.message ?? "Could not sign out");
     }
   },
-  me: () => api.get<ApiResponse<AuthUser>>(ENDPOINTS.auth.me),
+  me: async () => {
+    const result = await authClient.getSession();
+    if (result.error || !result.data?.user) {
+      throw new Error(result.error?.message ?? "Not signed in");
+    }
+    return result.data.user;
+  },
 };

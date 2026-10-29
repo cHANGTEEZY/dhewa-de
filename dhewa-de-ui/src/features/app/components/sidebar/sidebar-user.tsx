@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu";
 import Avatar from "@/components/_ui/avatar";
 import Button from "@/components/_ui/button";
-import { signOutSession } from "@/features/auth/lib/session";
+import { authClient } from "@/lib/auth-client";
 import { CURRENT_USER } from "@/features/home/data/companies";
 import { useUiStore } from "@/features/app/stores/ui-store";
 import ChevronDownIcon from "@/public/assets/images/_common/chevron-down.svg?react";
@@ -23,8 +23,8 @@ export default function SidebarUser() {
     void navigate({ to: "/settings" });
   }
 
-  function logout() {
-    signOutSession();
+  async function logout() {
+    await authClient.signOut();
     closeMobile();
     void navigate({ to: "/login" });
   }

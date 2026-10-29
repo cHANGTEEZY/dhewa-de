@@ -94,7 +94,7 @@ bun run db:migrate
 bun run dev
 ```
 
-The API listens at **http://localhost:3000** by default.
+The process listens on **port 3001** (`PORT`). The browser talks to **http://localhost:3000**, and the web app proxies `/api` to this process. Set `BETTER_AUTH_URL=http://localhost:3000` so cookies and OAuth callbacks use that origin.
 
 | Endpoint | Description |
 | --- | --- |
@@ -111,7 +111,7 @@ All variables are validated at startup via Zod in `src/config/env.ts`. Bun loads
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `PORT` | No | Server port (default: `3000`) |
+| `PORT` | No | Process port (default: `3001`) |
 | `HOST` | No | Bind address (default: `0.0.0.0`) |
 | `NODE_ENV` | No | `development` \| `production` \| `test` |
 | `LOG_LEVEL` | No | Pino log level (default: `info`) |
@@ -119,7 +119,11 @@ All variables are validated at startup via Zod in `src/config/env.ts`. Bun loads
 | `FRONTEND_ORIGIN` | **Yes** | SPA origin for auth callbacks |
 | `DATABASE_URL` | **Yes** | PostgreSQL connection string |
 | `DATABASE_URL_UNPOOLED` | No | Direct URL for Neon migrations |
-| `BETTER_AUTH_URL` | No | Auth base URL (default: `http://localhost:3000`) |
+| `BETTER_AUTH_URL` | No | Browser origin the web app proxies (default: `http://localhost:3000`) |
+| `GOOGLE_CLIENT_ID` | No | Google OAuth client id. Set with the secret, or leave both empty |
+| `GOOGLE_CLIENT_SECRET` | No | Google OAuth client secret |
+| `TWITCH_CLIENT_ID` | No | Twitch OAuth client id. Set with the secret, or leave both empty |
+| `TWITCH_CLIENT_SECRET` | No | Twitch OAuth client secret |
 | `BETTER_AUTH_SECRET` | **Yes** | Min 32 chars — encryption & hashing |
 | `ARCJET_KEY` | **Yes** | Arcjet site key from [app.arcjet.com](https://app.arcjet.com) |
 | `ARCJET_ENV` | No | `development` \| `production` (default: `development`) |
@@ -130,7 +134,12 @@ See [`.env.example`](.env.example) for a full template.
 
 ## Authentication (Better Auth)
 
-Auth is configured in [`src/modules/auth/auth.service.ts`](src/modules/auth/auth.service.ts) with the Drizzle adapter and email/password enabled.
+Auth is configured in [`src/modules/auth/auth.service.ts`](src/modules/auth/auth.service.ts) with the Drizzle adapter, email/password, and optional Google and Twitch providers. A provider is registered only when both its client id and secret are set.
+
+OAuth callback URLs, registered on the provider, are:
+
+- `http://localhost:3000/api/auth/callback/google`
+- `http://localhost:3000/api/auth/callback/twitch`
 
 ### Auth routes
 
@@ -138,17 +147,17 @@ Better Auth is mounted at `/api/auth/*`. Common endpoints:
 
 ```bash
 # Sign up
-curl -X POST http://localhost:3000/api/auth/sign-up/email \
+curl -X POST http://localhost:3001/api/auth/sign-up/email \
   -H "Content-Type: application/json" \
   -d '{"name":"Jane","email":"jane@example.com","password":"secure-password"}'
 
 # Sign in
-curl -X POST http://localhost:3000/api/auth/sign-in/email \
+curl -X POST http://localhost:3001/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
   -d '{"email":"jane@example.com","password":"secure-password"}'
 
 # Get session
-curl http://localhost:3000/api/auth/get-session \
+curl http://localhost:3001/api/auth/get-session \
   -H "Cookie: <session-cookie>"
 ```
 
@@ -280,7 +289,7 @@ Build and run with Docker:
 
 ```bash
 docker build -t hono-api .
-docker run -p 3000:3000 --env-file .env.local hono-api
+docker run -p 3001:3001 --env-file .env.local hono-api
 ```
 
 The image uses a multi-stage build on `oven/bun`, runs as the non-root `bun` user, and includes a `/health` check.

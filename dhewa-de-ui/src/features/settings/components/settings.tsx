@@ -11,7 +11,7 @@ import Field from "@/components/_ui/field";
 import { Input } from "@/components/_ui/input";
 import { Label } from "@/components/_ui/label";
 import { useUiStore } from "@/features/app/stores/ui-store";
-import { signOutSession } from "@/features/auth/lib/session";
+import { authClient } from "@/lib/auth-client";
 import { CURRENT_USER } from "@/features/home/data/companies";
 import SettingsHeader from "./header";
 
@@ -23,8 +23,8 @@ export default function Settings() {
   const [digest, setDigest] = useState(true);
   const [dealAlerts, setDealAlerts] = useState(true);
 
-  function logout() {
-    signOutSession();
+  async function logout() {
+    await authClient.signOut();
     void navigate({ to: "/login" });
   }
 
