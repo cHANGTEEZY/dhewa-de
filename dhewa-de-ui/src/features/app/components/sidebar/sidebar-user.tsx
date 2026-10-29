@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { DropdownMenu } from "@/components/arc/dropdown-menu/dropdown-menu";
 import Avatar from "@/components/_ui/avatar";
 import Button from "@/components/_ui/button";
-import { signOutSession } from "@/features/auth/lib/session";
+import { authClient } from "@/lib/auth-client";
 import { CURRENT_USER } from "@/features/home/data/companies";
 import { useUiStore } from "@/features/app/stores/ui-store";
 import ChevronDownIcon from "@/public/assets/images/_common/chevron-down.svg?react";
@@ -13,6 +13,12 @@ import { GearIcon, LogoutIcon } from "./sidebar-icons";
 export default function SidebarUser() {
   const navigate = useNavigate();
   const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
+  const { data: session } = authClient.useSession();
+  const name = session?.user.name ?? "Account";
+  const detail = session?.user.username
+    ? `@${session.user.username}`
+    : (session?.user.email ?? "");
+  const avatar = session?.user.image || CURRENT_USER.avatar;
 
   function closeMobile() {
     setSidebarOpen(false);
@@ -23,8 +29,8 @@ export default function SidebarUser() {
     void navigate({ to: "/settings" });
   }
 
-  function logout() {
-    signOutSession();
+  async function logout() {
+    await authClient.signOut();
     closeMobile();
     void navigate({ to: "/login" });
   }
@@ -38,20 +44,20 @@ export default function SidebarUser() {
         trigger={
           <Button
             variant="nav"
-            aria-label={`Account menu for ${CURRENT_USER.name}`}
+            aria-label={`Account menu for ${name}`}
             className="group h-auto items-center gap-2.5 rounded-lg px-2 py-1.5 data-[state=open]:bg-sidebar-primary"
           >
             <Avatar
-              src={CURRENT_USER.avatar}
+              src={avatar}
               alt=""
               className="size-8 outline-line-strong"
             />
             <span className="min-w-0 flex-1 text-left">
               <span className="block truncate text-[13px] leading-none font-medium text-foreground">
-                {CURRENT_USER.name}
+                {name}
               </span>
               <span className="caption-style text-subtle group-hover:text-soft group-data-[state=open]:text-soft mt-1.5 block truncate transition-colors duration-150 ease-power3-out">
-                {CURRENT_USER.role}
+                {detail}
               </span>
             </span>
             <ChevronDownIcon

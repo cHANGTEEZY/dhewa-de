@@ -7,7 +7,7 @@ import axios, {
 
 const BASE_URL =
   (import.meta.env.VITE_API_URL as string | undefined) ??
-  "http://localhost:8000/api";
+  "http://localhost:3000/api";
 const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 300;
@@ -123,40 +123,6 @@ function retryDelay(attempt: number, error: AxiosError): number {
   return RETRY_BASE_DELAY_MS * 2 ** attempt + Math.random() * 100;
 }
 
-type RefreshQueueEntry = {
-  resolve: (token: string) => void;
-  reject: (err: unknown) => void;
-};
-
-let isRefreshing = false;
-let refreshQueue: RefreshQueueEntry[] = [];
-
-function flushRefreshQueue(error: unknown, token: string | null) {
-  for (const entry of refreshQueue) {
-    if (error) {
-      entry.reject(error);
-    } else {
-      entry.resolve(token!);
-    }
-  }
-  refreshQueue = [];
-}
-
-async function doTokenRefresh(): Promise<string> {
-  const refreshToken = tokenStore.getRefreshToken();
-  if (!refreshToken) {
-    throw new Error("No refresh token available");
-  }
-
-  const { data } = await axios.post<{ access_token: string }>(
-    `${BASE_URL}/auth/refresh`,
-    { refresh_token: refreshToken },
-  );
-
-  tokenStore.setToken(data.access_token);
-  return data.access_token;
-}
-
 function normalizeError(error: AxiosError): ApiError {
   const status = error.response?.status ?? 0;
   const data = error.response?.data as Record<string, unknown> | undefined;
@@ -193,15 +159,11 @@ const httpClient: AxiosInstance = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  withCredentials: false,
+  withCredentials: true,
 });
 
 httpClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = tokenStore.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     config._retryCount ??= 0;
     return config;
   },
@@ -214,32 +176,11 @@ httpClient.interceptors.response.use(
     const config = error.config as InternalAxiosRequestConfig | undefined;
     if (!config) return Promise.reject(normalizeError(error));
 
-    if (error.response?.status === 401 && !config._skipAuthRefresh) {
-      if (isRefreshing) {
-        return new Promise<string>((resolve, reject) => {
-          refreshQueue.push({ resolve, reject });
-        }).then((newToken) => {
-          config.headers.Authorization = `Bearer ${newToken}`;
-          return httpClient(config);
-        });
+    if (error.response?.status === 401) {
+      if (isBrowser()) {
+        window.dispatchEvent(new CustomEvent("api:unauthorized"));
       }
-
-      isRefreshing = true;
-      try {
-        const newToken = await doTokenRefresh();
-        flushRefreshQueue(null, newToken);
-        config.headers.Authorization = `Bearer ${newToken}`;
-        return httpClient(config);
-      } catch (refreshError) {
-        flushRefreshQueue(refreshError, null);
-        tokenStore.clearAll();
-        if (isBrowser()) {
-          window.dispatchEvent(new CustomEvent("api:unauthorized"));
-        }
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+      return Promise.reject(normalizeError(error));
     }
 
     const attempt = config._retryCount ?? 0;

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { authApi, type LoginPayload } from "../auth";
+import { authApi, type LoginPayload, type RegisterPayload } from "../auth";
 
 export const authKeys = {
   all: ["auth"] as const,
@@ -12,6 +12,7 @@ export function useMe(enabled = true) {
     queryFn: () => authApi.me(),
     staleTime: 60 * 60 * 1_000,
     enabled,
+    retry: false,
   });
 }
 
@@ -19,6 +20,16 @@ export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: LoginPayload) => authApi.login(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+  });
+}
+
+export function useRegister() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: RegisterPayload) => authApi.register(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me });
     },

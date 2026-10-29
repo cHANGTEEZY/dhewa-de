@@ -54,8 +54,18 @@ function urlForPgCli(url: string): string {
   }
 }
 
+function directConnectionString(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hostname = parsed.hostname.replace("-pooler", "");
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 const pool = new Pool({
-  connectionString: urlForPgCli(migrationUrl),
+  connectionString: directConnectionString(urlForPgCli(migrationUrl)),
 });
 
 const db = drizzle(pool);

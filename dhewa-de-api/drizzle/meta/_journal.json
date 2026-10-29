@@ -8,6 +8,13 @@
       "when": 1783031977557,
       "tag": "0000_striped_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793297990973,
+      "tag": "0001_user_username",
+      "breakpoints": true
     }
   ]
 }

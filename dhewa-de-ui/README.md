@@ -11,6 +11,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+`/api` is proxied to the API on port 3001, so Better Auth cookies stay on this origin. Run the API with `PORT=3001` and `BETTER_AUTH_URL=http://localhost:3000`. Google and Twitch callbacks are `http://localhost:3000/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/twitch`.
+
 | Script                 | What it does                                                       |
 | ---------------------- | ------------------------------------------------------------------ |
 | `npm run dev`          | Start the dev server                                               |

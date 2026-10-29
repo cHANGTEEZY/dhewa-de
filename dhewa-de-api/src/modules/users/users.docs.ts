@@ -19,6 +19,25 @@ export const usersErrorSchema = z.object({
   requestId: z.string(),
 });
 
+export const emailVerificationResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    sent: z.boolean(),
+    alreadyVerified: z.boolean(),
+    verificationUrl: z.string().optional(),
+  }),
+  requestId: z.string(),
+});
+
+const errorResponse = {
+  description: "Request failed",
+  content: {
+    "application/json": {
+      schema: resolver(usersErrorSchema),
+    },
+  },
+};
+
 export const usersDocs = {
   getMe: {
     tags: usersTags,
@@ -50,6 +69,45 @@ export const usersDocs = {
           },
         },
       },
+    },
+  },
+  updateMe: {
+    tags: usersTags,
+    summary: "Update name and username",
+    description: "Updates the authenticated user's display name and username.",
+    security: [{ cookieAuth: [] }],
+    responses: {
+      200: {
+        description: "Updated profile",
+        content: {
+          "application/json": {
+            schema: resolver(userProfileResponseSchema),
+          },
+        },
+      },
+      401: errorResponse,
+      404: errorResponse,
+      409: errorResponse,
+      422: errorResponse,
+    },
+  },
+  sendEmailVerification: {
+    tags: usersTags,
+    summary: "Send an email verification link",
+    description:
+      "Issues a Better Auth verification link for the signed-in user. Outside production, the response includes the link because no mail transport is configured.",
+    security: [{ cookieAuth: [] }],
+    responses: {
+      200: {
+        description: "Verification link issued, or the email is already verified",
+        content: {
+          "application/json": {
+            schema: resolver(emailVerificationResponseSchema),
+          },
+        },
+      },
+      401: errorResponse,
+      404: errorResponse,
     },
   },
 };

@@ -1,31 +1,115 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ConfirmMorph } from "@/components/arc/confirm-morph/confirm-morph";
 import { HoldToConfirm } from "@/components/arc/hold-to-confirm/hold-to-confirm";
 import AppearanceSwitch from "@/components/_common/appearance-switch";
 import Avatar from "@/components/_ui/avatar";
+import Button from "@/components/_ui/button";
 import { Checkbox } from "@/components/_ui/checkbox";
 import Field from "@/components/_ui/field";
 import { Input } from "@/components/_ui/input";
 import { Label } from "@/components/_ui/label";
+import {
+  profileErrorMessage,
+  sendEmailVerification,
+  updateProfile,
+} from "@/api/profile";
 import { useUiStore } from "@/features/app/stores/ui-store";
-import { signOutSession } from "@/features/auth/lib/session";
+import { authClient } from "@/lib/auth-client";
 import { CURRENT_USER } from "@/features/home/data/companies";
 import SettingsHeader from "./header";
+
+const USERNAME_PATTERN = /^[a-z0-9_]{3,30}$/;
 
 export default function Settings() {
   const navigate = useNavigate();
   const showToast = useUiStore((state) => state.showToast);
-  const [name, setName] = useState(CURRENT_USER.name);
-  const [email, setEmail] = useState(CURRENT_USER.email);
+  const { data: session, isPending, refetch } = authClient.useSession();
+  const user = session?.user;
+  const sessionName = user?.name ?? "";
+  const sessionUsername = user?.username ?? "";
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState("");
+  const [verificationUrl, setVerificationUrl] = useState("");
   const [digest, setDigest] = useState(true);
   const [dealAlerts, setDealAlerts] = useState(true);
 
-  function logout() {
-    signOutSession();
+  useEffect(() => {
+    if (!user) return;
+    setName(sessionName);
+    setUsername(sessionUsername);
+  }, [user, sessionName, sessionUsername]);
+
+  async function logout() {
+    await authClient.signOut();
     void navigate({ to: "/login" });
+  }
+
+  async function saveProfile() {
+    const nextName = name.trim();
+    const nextUsername = username.trim().toLowerCase();
+    const nextNameError = nextName ? "" : "Enter your name";
+    const nextUsernameError = USERNAME_PATTERN.test(nextUsername)
+      ? ""
+      : "Use 3–30 letters, numbers, or underscores";
+
+    setNameError(nextNameError);
+    setUsernameError(nextUsernameError);
+    setFormError("");
+
+    if (nextNameError || nextUsernameError) {
+      throw new Error(nextNameError || nextUsernameError);
+    }
+
+    try {
+      await updateProfile({ name: nextName, username: nextUsername });
+      await refetch();
+      showToast({
+        title: "Profile saved",
+        description: "Your name and username are up to date.",
+      });
+    } catch (error) {
+      const message = profileErrorMessage(error);
+      setFormError(message);
+      throw error;
+    }
+  }
+
+  async function verifyEmail() {
+    setVerifying(true);
+    setVerifyError("");
+    setVerificationUrl("");
+    try {
+      const result = await sendEmailVerification();
+      await refetch();
+      if (result.data.alreadyVerified) {
+        showToast({
+          title: "Email verified",
+          description: "This address is already verified.",
+        });
+        return;
+      }
+      if (result.data.verificationUrl) {
+        setVerificationUrl(result.data.verificationUrl);
+      }
+      showToast({
+        title: "Verification link ready",
+        description: result.data.verificationUrl
+          ? "Open the link to verify this email."
+          : "Check your inbox for the verification link.",
+      });
+    } catch (error) {
+      setVerifyError(profileErrorMessage(error));
+    } finally {
+      setVerifying(false);
+    }
   }
 
   return (
@@ -40,66 +124,119 @@ export default function Settings() {
                 How you appear across the workspace.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <Avatar
-                src={CURRENT_USER.avatar}
-                alt=""
-                className="size-12 outline-line-strong"
-              />
-              <div className="min-w-0">
-                <p className="truncate font-medium">{CURRENT_USER.name}</p>
-                <p className="caption-style text-subtle mt-1.5 truncate">
-                  {CURRENT_USER.role}
-                </p>
-              </div>
-            </div>
-            <form
-              className="flex flex-col gap-5"
-              onSubmit={(event) => event.preventDefault()}
-            >
-              <Field label="Name" htmlFor="settings-name">
-                <Input
-                  id="settings-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  autoComplete="name"
-                />
-              </Field>
-              <Field label="Email" htmlFor="settings-email">
-                <Input
-                  id="settings-email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  autoComplete="email"
-                />
-              </Field>
-              <Field label="Role" htmlFor="settings-role">
-                <Input
-                  id="settings-role"
-                  value={CURRENT_USER.role}
-                  readOnly
-                  className="text-subtle"
-                />
-              </Field>
-              <div>
-                <ConfirmMorph
-                  label="Save changes"
-                  prompt="Save profile updates?"
-                  confirmLabel="Save"
-                  cancelLabel="Cancel"
-                  pendingLabel="Saving"
-                  doneLabel="Saved"
-                  tone="neutral"
-                  onConfirm={() => {
-                    showToast({
-                      title: "Profile saved",
-                      description: "Your workspace profile is up to date.",
-                    });
-                  }}
-                />
-              </div>
-            </form>
+            {isPending || !user ? (
+              <p className="text-subtle">Loading your profile.</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <Avatar
+                    src={user.image || CURRENT_USER.avatar}
+                    alt=""
+                    className="size-12 outline-line-strong"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{user.name}</p>
+                    <p className="caption-style text-subtle mt-1.5 truncate">
+                      {user.username ? `@${user.username}` : user.email}
+                    </p>
+                  </div>
+                </div>
+                <form
+                  className="flex flex-col gap-5"
+                  onSubmit={(event) => event.preventDefault()}
+                >
+                  <Field
+                    label="Name"
+                    htmlFor="settings-name"
+                    error={nameError}
+                  >
+                    <Input
+                      id="settings-name"
+                      value={name}
+                      onChange={(event) => {
+                        setName(event.target.value);
+                        if (nameError) setNameError("");
+                      }}
+                      autoComplete="name"
+                    />
+                  </Field>
+                  <Field
+                    label="Username"
+                    htmlFor="settings-username"
+                    error={usernameError}
+                    hint="Letters, numbers, and underscores."
+                  >
+                    <Input
+                      id="settings-username"
+                      value={username}
+                      onChange={(event) => {
+                        setUsername(event.target.value);
+                        if (usernameError) setUsernameError("");
+                      }}
+                      autoComplete="username"
+                      spellCheck={false}
+                    />
+                  </Field>
+                  <Field
+                    label="Email"
+                    htmlFor="settings-email"
+                    hint={user.emailVerified ? "Verified" : "Unverified"}
+                  >
+                    <Input
+                      id="settings-email"
+                      type="email"
+                      value={user.email}
+                      readOnly
+                      autoComplete="email"
+                      className="text-subtle"
+                    />
+                  </Field>
+                  {user.emailVerified ? null : (
+                    <div className="flex flex-col items-start gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="md"
+                        disabled={verifying}
+                        onClick={() => void verifyEmail()}
+                      >
+                        {verifying ? "Sending link" : "Verify email"}
+                      </Button>
+                      {verificationUrl ? (
+                        <a
+                          href={verificationUrl}
+                          className="text-foreground text-[14px] underline decoration-from-font underline-offset-2 hover:text-soft"
+                        >
+                          Open verification link
+                        </a>
+                      ) : null}
+                      {verifyError ? (
+                        <p role="alert" className="caption-style text-danger">
+                          {verifyError}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                  {formError ? (
+                    <p role="alert" className="caption-style text-danger">
+                      {formError}
+                    </p>
+                  ) : null}
+                  <div>
+                    <ConfirmMorph
+                      label="Save changes"
+                      prompt="Save profile updates?"
+                      confirmLabel="Save"
+                      cancelLabel="Cancel"
+                      pendingLabel="Saving"
+                      doneLabel="Saved"
+                      tone="neutral"
+                      onConfirm={saveProfile}
+                    />
+                  </div>
+                </form>
+              </>
+            )}
           </section>
 
           <section className="flex flex-col gap-5">
