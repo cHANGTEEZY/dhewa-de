@@ -1,49 +1,46 @@
-# Kargul Starter
+# Dhewa web
 
-TanStack Start (Vite) + React 19 + Tailwind CSS 4 boilerplate. Read `CONVENTIONS.md` before writing any component, section, or page — it is the whole spec for how this repo is built.
+TanStack Start app for Dhewa. It will host the streamer dashboard, the public donate page, and the OBS overlays. Right now it is the app shell: routing, the signed-in layout, and the auth screens.
 
-## Getting started
+Sign-in uses the API session. `/api` is proxied to the API on port 3001, so Better Auth cookies stay on this origin. Run the API with `PORT=3001` and `BETTER_AUTH_URL=http://localhost:3000`. Google and Twitch callbacks are `http://localhost:3000/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/twitch`.
+
+## Requirements
+
+- Node 22
+- npm
+
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+The dev server is http://localhost:3000.
 
-`/api` is proxied to the API on port 3001, so Better Auth cookies stay on this origin. Run the API with `PORT=3001` and `BETTER_AUTH_URL=http://localhost:3000`. Google and Twitch callbacks are `http://localhost:3000/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/twitch`.
+| Script | What it does |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | Lint |
+| `npm run to:avif` | Convert an image to AVIF |
+| `npm run extract:avif` | Poster frame from each `.webm` under `public/` |
+| `npm run frame:rive` | Still frame from a `.riv` file |
 
-| Script                 | What it does                                                       |
-| ---------------------- | ------------------------------------------------------------------ |
-| `npm run dev`          | Start the dev server                                               |
-| `npm run build`        | Production build                                                   |
-| `npm run start`        | Serve the production build                                         |
-| `npm run lint`         | ESLint                                                             |
-| `npm run to:avif`      | Convert an image to AVIF and report its inline cost — rule 11      |
-| `npm run extract:avif` | Pull the first frame of every `.webm` under `public/` as a poster  |
-| `npm run frame:rive`   | Render a still from a `.riv` file for use as its poster            |
-
-## First things to set on a new project
-
-1. **`src/lib/seo.ts`** — `SITE_NAME`, `SITE_URL`, `SITE_DESCRIPTION`, `SITE_ROUTES`. Everything in `src/routes/robots[.]txt.ts`, `src/routes/sitemap[.]xml.ts`, `src/routes/llms[.]txt.ts` and every route's `head()` derives from these. Set `VITE_SITE_URL` in the environment to override the URL per deploy.
-2. **`src/styles.css`** — match the `@layer base` type scale and the `--padding-section-*` tokens to the design before building anything (rules 1 and 3).
-3. **`public/opengraph-image.jpg`** — 1200×630, referenced by `DEFAULT_OG_IMAGE` in `src/lib/seo.ts`.
-4. **Fonts** — `src/styles.css` ships Geist Variable (`@fontsource-variable/geist` via `--font-geist`); swap it for the design's typeface.
-
-## Structure
+## Layout
 
 ```
-src/routes/       file-based routes + server routes (robots, sitemap, llms)
-src/features/     feature folders — page, components, lib, data, stores
-src/components/   shared UI (_ui, _common, motion-primitives)
-src/lib/          shared helpers (seo, utils, sidebar, easings)
-src/router.tsx    TanStack Router config
+src/routes/       file routes, plus robots.txt, sitemap.xml, and llms.txt
+src/features/     screens, grouped by area (auth, home, users, settings)
+src/components/   shared UI
+src/api/          client helpers
+src/lib/          seo, the HTTP client, and other shared helpers
+src/router.tsx    TanStack Router setup
 ```
 
-## Docs
+Page titles and the sitemap come from `src/lib/seo.ts`. Set `VITE_SITE_URL` when the public URL is not the default.
 
-| File               | What's in it                                                        |
-| ------------------ | ------------------------------------------------------------------- |
-| `CONVENTIONS.md`   | The build rules. Read first.                                        |
-| `AGENTS.md`        | TanStack Start notes for agents                                     |
-| `OPTIMIZATION.md`  | Why `Asset`'s Rive loading is gated behind LCP, with the measurements |
+## API
+
+The API is a separate app. See [../dhewa-de-api/README.md](../dhewa-de-api/README.md). Run it on port 3001 so it does not take 3000 from this dev server.

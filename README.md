@@ -1,6 +1,18 @@
 # Dhewa
 
-Dhewa is a donation platform for Nepali streamers. This repo holds the web app and the API.
+Dhewa is a donation platform for Nepali streamers. A viewer opens a streamer's page, pays in NPR with Khalti or eSewa, and the verified amount is credited to that streamer's wallet. An OBS browser source plays the alert. Payouts are requested by the streamer and sent manually after an admin approves them.
+
+This is a personal project and it is not released. Do not put production payment keys in it.
+
+## Layout
+
+```
+dhewa-de-ui/    web app
+dhewa-de-api/   HTTP API
+project.md      product notes (domain, data model, build order)
+```
+
+The web app is a TanStack Start frontend. The API is Hono on Bun, with Postgres, Drizzle, and Better Auth.
 
 ## Run locally
 
@@ -27,4 +39,8 @@ Sign-in is email and password. Google and Twitch work after you set both the cli
 - `http://localhost:3000/api/auth/callback/google`
 - `http://localhost:3000/api/auth/callback/twitch`
 
-Each app has its own README: [dhewa-de-ui/README.md](dhewa-de-ui/README.md) and [dhewa-de-api/README.MD](dhewa-de-api/README.MD).
+Each app has its own README: [dhewa-de-ui/README.md](dhewa-de-ui/README.md) and [dhewa-de-api/README.md](dhewa-de-api/README.md).
+
+## Where things stand
+
+Sign-in, the session, and the settings profile (name, username, email verification) go through the API. Donations, the wallet, overlays, and payouts are not built. `project.md` is the spec for that work.
