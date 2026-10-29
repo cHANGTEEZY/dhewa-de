@@ -13,3 +13,17 @@ usersRoutes.get(
   describeRoute(usersDocs.getMe),
   (c) => usersController.getMe(c),
 );
+
+usersRoutes.patch(
+  "/me",
+  requireAuth(),
+  describeRoute(usersDocs.updateMe),
+  (c) => usersController.updateMe(c),
+);
+
+usersRoutes.post(
+  "/me/email/verification",
+  requireAuth(),
+  describeRoute(usersDocs.sendEmailVerification),
+  (c) => usersController.sendEmailVerification(c),
+);

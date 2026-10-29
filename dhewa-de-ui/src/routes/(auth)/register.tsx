@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import RegisterPage from "@/features/auth/register";
 import { authHead } from "@/features/auth/lib/head";
-import { readSession } from "@/lib/auth-client";
+import { readSession } from "@/lib/read-session";
 
 const TITLE = "Create account";
 const DESCRIPTION = "Create a Dhewa account.";

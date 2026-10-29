@@ -1,3 +1,4 @@
+import { inferAdditionalFields } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
 function authBaseUrl() {
@@ -9,28 +10,17 @@ function authBaseUrl() {
 
 export const authClient = createAuthClient({
   baseURL: authBaseUrl(),
+  plugins: [
+    inferAdditionalFields({
+      user: {
+        username: {
+          type: "string",
+          required: false,
+        },
+      },
+    }),
+  ],
 });
-
-export async function readSession() {
-  try {
-    const result = await authClient.getSession({
-      fetchOptions:
-        typeof window === "undefined"
-          ? { headers: await serverCookieHeader() }
-          : undefined,
-    });
-    return result.data?.session ? result.data : null;
-  } catch {
-    return null;
-  }
-}
-
-async function serverCookieHeader(): Promise<HeadersInit> {
-  const { getRequest } = await import("@tanstack/react-start/server");
-  const cookie = getRequest().headers.get("cookie");
-  if (!cookie) return new Headers();
-  return { cookie };
-}
 
 export function authErrorMessage(error: { message?: string } | null | undefined) {
   return error?.message || "Something went wrong. Try again.";
